@@ -1,4 +1,4 @@
-// MintStudio server — verifiable AI creation (0G) → NFT mint (BOT Chain testnet / simulated)
+// MintStudio server — verifiable AI creation (0G) → NFT mint (0G Galileo testnet / simulated)
 import express from "express";
 import path from "node:path";
 import fs from "node:fs";
@@ -72,7 +72,7 @@ app.post("/api/create", async (req, res) => {
   }
 });
 
-// ---- Step 2: mint (BOT Chain testnet when configured; simulated otherwise) ----
+// ---- Step 2: mint (0G Galileo testnet when wallet configured; simulated otherwise) ----
 app.post("/api/mint/:id", async (req, res) => {
   const work = gallery.find((w) => w.id === req.params.id);
   if (!work) return res.status(404).json({ error: "not found" });
@@ -91,15 +91,15 @@ app.post("/api/mint/:id", async (req, res) => {
     ],
   };
 
-  const rpc = process.env.BOTCHAIN_RPC_URL;
-  const pk = process.env.BOTCHAIN_PRIVATE_KEY;
-  const contract = process.env.BOTCHAIN_NFT_CONTRACT;
-  if (rpc && pk && contract) {
+  const rpc = process.env.ZG_CHAIN_RPC ?? "https://evmrpc-testnet.0g.ai";
+  const pk = process.env.ZG_CHAIN_PRIVATE_KEY;
+  const contract = process.env.ZG_NFT_CONTRACT || null; // optional — anchor-tx mode without it
+  if (pk) {
     try {
       const { mintOnChain } = await import("./mint.js");
       work.minted = await mintOnChain({ rpc, pk, contract, metadata });
     } catch (err) {
-      return res.status(502).json({ error: `on-chain mint failed: ${err.message}. Set nothing to use simulated mint.` });
+      return res.status(502).json({ error: `on-chain mint failed: ${err.message}. Unset ZG_CHAIN_PRIVATE_KEY to use simulated mint.` });
     }
   } else {
     // simulated mint — clearly labeled; metadata hash is real & reproducible
@@ -109,7 +109,7 @@ app.post("/api/mint/:id", async (req, res) => {
       txHash: `0xSIM${hash.slice(0, 60)}`,
       tokenURI: `data:application/json;base64,${Buffer.from(JSON.stringify(metadata)).toString("base64")}`,
       metadataHash: hash,
-      note: "simulated mint (no BOTCHAIN_* env) — metadata & hash are real; provenance proofRefs come from live 0G inference",
+      note: "simulated mint (no ZG_CHAIN_PRIVATE_KEY env) — metadata & hash are real; provenance proofRefs come from live 0G inference",
       ts: Date.now(),
     };
   }
