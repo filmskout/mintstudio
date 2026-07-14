@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MintStudio — Verifiable AI Art → NFT on 0G</title>
+<style>
+:root{--bg:#0d0a14;--panel:#171226;--txt:#f2edfa;--dim:#9a8fb8;--acc:#c084fc;--acc2:#38e8c6;--line:#2b2244;--ok:#2fd48a}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:radial-gradient(1200px 600px at 70% -10%,#251a3f 0%,var(--bg) 55%);color:var(--txt);font:15px/1.55 "Avenir Next","PingFang SC",system-ui,sans-serif;min-height:100vh}
+.wrap{max-width:1020px;margin:0 auto;padding:28px 16px 90px}
+h1{font-size:28px}
+h1 em{font-style:normal;background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--dim);margin:6px 0 22px;font-size:14px;max-width:720px}
+.tag{font-size:12px;background:#1d1733;border:1px solid var(--line);border-radius:999px;padding:3px 10px;color:var(--dim);margin-left:8px}
+.composer{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+input{flex:1;min-width:260px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 16px;color:var(--txt);font-size:15px}
+button{background:linear-gradient(135deg,var(--acc),#7c3aed);color:#fff;border:0;border-radius:12px;padding:12px 24px;font-size:15px;font-weight:700;cursor:pointer}
+button:disabled{opacity:.45;cursor:default}
+button.mint{background:linear-gradient(135deg,var(--acc2),#0ea5a0);font-size:13px;padding:8px 16px}
+.status{font-size:13px;color:var(--dim);min-height:20px;margin-bottom:20px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.card img{width:100%;aspect-ratio:1;object-fit:cover;display:block;background:#0a0812}
+.card .body{padding:14px 16px}
+.card h3{font-size:17px;margin-bottom:2px}
+.card .cap{font-size:13px;color:var(--dim);margin-bottom:10px}
+.prov{background:#120e20;border:1px dashed #3a2d66;border-radius:10px;padding:9px 11px;font:11px/1.7 ui-monospace,Menlo,monospace;color:#b3a5e0;word-break:break-all;margin-bottom:10px}
+.prov b{color:var(--acc2)}
+.minted{font:11px/1.7 ui-monospace,Menlo,monospace;color:#8fe8cd;background:#0d1f1a;border:1px solid #1c4a3c;border-radius:10px;padding:9px 11px;word-break:break-all}
+.simtag{color:#ffb454}
+footer{margin-top:40px;color:var(--dim);font-size:12px;text-align:center}
+a{color:var(--acc)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🎨 Mint<em>Studio</em><span class="tag">0G verifiable inference</span><span class="tag">NFT provenance</span></h1>
+  <p class="sub">Type an idea. A 0G model (TEE-verified) writes the title, caption &amp; image prompt; 0G's <b>z-image-turbo</b> paints it. Mint it as an NFT whose metadata embeds the <b>0G proofRefs</b> — an on-chain certificate of AI provenance.</p>
+
+  <div class="composer">
+    <input id="idea" maxlength="200" placeholder="e.g. a lighthouse made of jellyfish light, guarding a paper sea">
+    <button id="btnCreate" onclick="create()">✦ Create (verified)</button>
+  </div>
+  <div class="status" id="status"></div>
+
+  <div class="grid" id="gallery"></div>
+
+  <footer>All generation runs on <a href="https://pc.0g.ai" target="_blank">0G Private Computer</a> (deepseek-v4-pro + z-image-turbo, verify_tee) · mint on BOT Chain testnet or clearly-labeled simulation · AI³ Growth Hackathon 2026</footer>
+</div>
+
+<script>
+const $=s=>document.querySelector(s);
+function esc(s){const d=document.createElement('div');d.textContent=s??'';return d.innerHTML}
+
+async function create(){
+  const idea=$('#idea').value.trim();
+  if(!idea){$('#status').textContent='enter an idea first';return}
+  $('#btnCreate').disabled=true;
+  $('#status').textContent='⏳ 0G verified inference: writing metadata → painting with z-image-turbo… (~20s)';
+  try{
+    const r=await fetch('api/create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idea})});
+    if(!r.ok) throw new Error((await r.json()).error||r.status);
+    $('#status').textContent='✅ created with verifiable provenance — mint it below';
+    $('#idea').value='';
+    load();
+  }catch(e){$('#status').textContent='❌ '+e.message}
+  finally{$('#btnCreate').disabled=false}
+}
+
+async function mint(id,btn){
+  btn.disabled=true;btn.textContent='minting…';
+  try{
+    const r=await fetch('api/mint/'+id,{method:'POST'});
+    if(!r.ok) throw new Error((await r.json()).error||r.status);
+    load();
+  }catch(e){btn.textContent='mint failed — retry';btn.disabled=false}
+}
+
+async function load(){
+  const works=await (await fetch('api/gallery')).json();
+  $('#gallery').innerHTML=works.map(w=>`
+    <div class="card">
+      <img src="${esc(w.image)}" alt="${esc(w.title)}" loading="lazy">
+      <div class="body">
+        <h3>${esc(w.title)}</h3>
+        <div class="cap">${esc(w.caption)}</div>
+        <div class="prov"><b>◉ 0G provenance</b><br>
+          text: ${esc(w.provenance.text.model)} · tee_verified=${w.provenance.text.teeVerified}<br>
+          proofRef: ${esc(w.provenance.text.proofRef||'—')}<br>
+          image: ${esc(w.provenance.image.model)}<br>
+          proofRef: ${esc(w.provenance.image.proofRef||'—')}</div>
+        ${w.minted?`
+          <div class="minted">🪙 MINTED ${w.minted.simulated?'<span class="simtag">[SIMULATED]</span>':''}<br>
+          tx: ${esc(w.minted.txHash)}<br>
+          ${w.minted.explorer?`<a href="${esc(w.minted.explorer)}" target="_blank">view on explorer</a>`:esc(w.minted.note||'')}</div>`
+        :`<button class="mint" onclick="mint('${esc(w.id)}',this)">🪙 Mint NFT with provenance</button>`}
+      </div>
+    </div>`).join('');
+}
+load();
+$('#idea').addEventListener('keydown',e=>{if(e.key==='Enter')create()});
+</script>
+</body>
+</html>
