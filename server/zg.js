@@ -58,7 +58,7 @@ export async function call(model, messages, opts = {}) {
 
       const data = await res.json();
       return {
-        output: stripThink(data.choices?.[0]?.message?.content ?? ""),
+        output: stripThink(data.choices?.[0]?.message?.content || data.choices?.[0]?.message?.reasoning_content || ""),
         proofRef: res.headers.get("zg-res-key") ?? data.id ?? null,
         teeVerified: findTeeVerified(data),
         model,

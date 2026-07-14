@@ -8,7 +8,7 @@
 
 ## What it is
 
-1. **Create (verified)** — type an idea. `deepseek-v4-pro` (0G, `verify_tee: true`) writes title, caption and a detailed image prompt; **`z-image-turbo`** (0G's own image model) paints it. Both proofRefs are displayed on the artwork card.
+1. **Create (verified)** — type an idea. Three 0G models collaborate: **`0gm-1.0-35b-a3b` (0G's own model)** writes title & caption, `deepseek-v4-pro` engineers the image prompt, **`z-image-turbo`** (0G's image model) paints it — each step with `verify_tee: true`. All three proofRefs are displayed on the artwork card and written into the NFT metadata.
 2. **Mint** — one click packages the work into ERC-721 metadata whose attributes embed `text_proof_ref`, `image_proof_ref` and `tee_verified`, then mints it **on 0G Chain itself** (Galileo testnet, chainId 16602) — an ERC-721 `mintWithURI` when `ZG_NFT_CONTRACT` is set, otherwise a provenance **anchor transaction** whose calldata is the metadata SHA-256, viewable on [chainscan-galileo.0g.ai](https://chainscan-galileo.0g.ai). Without a wallet key it falls back to a clearly-labeled **simulated** mint with a real, reproducible metadata SHA-256.
 3. **Gallery** — every minted work shows its provenance box + tx.
 
@@ -20,8 +20,11 @@ The **entire creative pipeline runs on 0G** — no third-party AI API:
 
 | Step | Model | Endpoint |
 |---|---|---|
-| Title / caption / image prompt | `deepseek-v4-pro` | `POST https://router-api.0g.ai/v1/chat/completions` with `"verify_tee": true` |
+| Title / caption | **`0gm-1.0-35b-a3b` (0G's own model)** | `POST https://router-api.0g.ai/v1/chat/completions` with `"verify_tee": true` |
+| Image prompt | `deepseek-v4-pro` | same, `"verify_tee": true` |
 | Image | `z-image-turbo` (0G image model) | `POST https://router-api.0g.ai/v1/images/generations` |
+
+Real on-chain mints on 0G Galileo testnet (chainId 16602): [`0x8cf2de91…abcb40`](https://chainscan-galileo.0g.ai/tx/0x8cf2de91997f6bb91a7758cdb8c67885b887972d5172fb445d60ad5177abcb40) and 3 more — see the gallery.
 
 Auth: `Authorization: Bearer $ZG_API_KEY` (pc.0g.ai dashboard, wallet-funded). Each response's `ZG-Res-Key` header is kept as the **proofRef** and written into the NFT metadata.
 

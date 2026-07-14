@@ -13,7 +13,8 @@ fs.mkdirSync(IMG_DIR, { recursive: true });
 
 const app = express();
 const PORT = process.env.PORT ?? 8703;
-const TEXT_MODEL = process.env.TEXT_MODEL ?? "deepseek-v4-pro";
+const TITLE_MODEL = process.env.TITLE_MODEL ?? "0gm-1.0-35b-a3b";   // 0G's own model: title + caption
+const PROMPT_MODEL = process.env.PROMPT_MODEL ?? "deepseek-v4-pro";  // image prompt engineering
 const IMAGE_MODEL = process.env.IMAGE_MODEL ?? "z-image-turbo";
 const BASE_URL = process.env.ZG_BASE_URL ?? "https://router-api.0g.ai/v1";
 
@@ -32,12 +33,20 @@ app.post("/api/create", async (req, res) => {
   const idea = String(req.body?.idea ?? "").trim().slice(0, 200);
   if (!idea) return res.status(400).json({ error: "idea required" });
   try {
-    // 1a. title/caption/image-prompt via 0G chat (verified)
-    const meta = await callJSON(TEXT_MODEL, [
-      { role: "system", content: 'You are an art director. Given a creative idea, reply ONLY with JSON: {"title":"<max 8 words>","caption":"<poetic caption, max 30 words>","imagePrompt":"<detailed English image generation prompt, max 60 words>"}' },
+    // 1a. title + caption on 0GM (0G's own model, verified)
+    const titleR = await callJSON(TITLE_MODEL, [
+      { role: "system", content: 'You are a poetic art curator. Given a creative idea, reply ONLY with JSON: {"title":"<max 8 words, same language as the idea>","caption":"<poetic caption, max 30 words, same language as the idea>"}' },
       { role: "user", content: idea },
-    ], { temperature: 0.9, maxTokens: 1500 });
-    if (!meta.json?.imagePrompt) throw new Error("art-director JSON unusable");
+    ], { temperature: 0.9, maxTokens: 4000 });
+    if (!titleR.json?.title) throw new Error("curator JSON unusable");
+
+    // 1b. image prompt on deepseek (verified) — multi-model collaboration
+    const promptR = await callJSON(PROMPT_MODEL, [
+      { role: "system", content: 'You are an image-prompt engineer. Given a creative idea and its title, reply ONLY with JSON: {"imagePrompt":"<detailed English image generation prompt, max 60 words>"}' },
+      { role: "user", content: `Idea: ${idea}\nTitle: ${titleR.json.title}` },
+    ], { temperature: 0.8, maxTokens: 2500 });
+    if (!promptR.json?.imagePrompt) throw new Error("prompt-engineer JSON unusable");
+    const meta = { json: { ...titleR.json, imagePrompt: promptR.json.imagePrompt } };
 
     // 1b. image via 0G z-image-turbo
     const imgRes = await fetch(`${BASE_URL}/images/generations`, {
@@ -58,7 +67,8 @@ app.post("/api/create", async (req, res) => {
       title: meta.json.title, caption: meta.json.caption, imagePrompt: meta.json.imagePrompt,
       image: `images/${id}.png`,
       provenance: {
-        text: { model: meta.model, proofRef: meta.proofRef, teeVerified: meta.teeVerified },
+        text: { model: titleR.model, proofRef: titleR.proofRef, teeVerified: titleR.teeVerified },
+        prompt: { model: promptR.model, proofRef: promptR.proofRef, teeVerified: promptR.teeVerified },
         image: { model: IMAGE_MODEL, proofRef: imageProofRef },
         endpoint: "router-api.0g.ai/v1",
       },
@@ -80,10 +90,12 @@ app.post("/api/mint/:id", async (req, res) => {
 
   const metadata = {
     name: work.title,
-    description: `${work.caption}\n\nAI provenance (0G verifiable inference): text proofRef=${work.provenance.text.proofRef}, image proofRef=${work.provenance.image.proofRef}`,
+    description: `${work.caption}\n\nAI provenance (0G verifiable inference): text proofRef=${work.provenance.text.proofRef}, prompt proofRef=${work.provenance.prompt?.proofRef ?? "n/a"}, image proofRef=${work.provenance.image.proofRef}`,
     image: work.image,
     attributes: [
       { trait_type: "text_model", value: work.provenance.text.model },
+      { trait_type: "prompt_model", value: work.provenance.prompt?.model ?? "n/a" },
+      { trait_type: "prompt_proof_ref", value: work.provenance.prompt?.proofRef ?? "n/a" },
       { trait_type: "image_model", value: work.provenance.image.model },
       { trait_type: "text_proof_ref", value: work.provenance.text.proofRef },
       { trait_type: "image_proof_ref", value: work.provenance.image.proofRef },

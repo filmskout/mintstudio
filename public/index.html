@@ -36,7 +36,7 @@ a{color:var(--acc)}
 <body>
 <div class="wrap">
   <h1>🎨 Mint<em>Studio</em><span class="tag">0G verifiable inference</span><span class="tag">NFT provenance</span></h1>
-  <p class="sub">Type an idea. A 0G model (TEE-verified) writes the title, caption &amp; image prompt; 0G's <b>z-image-turbo</b> paints it. Mint it as an NFT whose metadata embeds the <b>0G proofRefs</b> — an on-chain certificate of AI provenance.</p>
+  <p class="sub">Type an idea. Three 0G models collaborate (TEE-verified): <b>0GM</b> (0G's own model) writes title &amp; caption, <b>deepseek-v4-pro</b> engineers the image prompt, <b>z-image-turbo</b> paints it. Mint it as an NFT whose metadata embeds the <b>0G proofRefs</b> — an on-chain certificate of AI provenance.</p>
 
   <div class="composer">
     <input id="idea" maxlength="200" placeholder="e.g. a lighthouse made of jellyfish light, guarding a paper sea">
@@ -46,7 +46,7 @@ a{color:var(--acc)}
 
   <div class="grid" id="gallery"></div>
 
-  <footer>All generation runs on <a href="https://pc.0g.ai" target="_blank">0G Private Computer</a> (deepseek-v4-pro + z-image-turbo, verify_tee) · mint on 0G Galileo testnet (anchor tx / ERC-721) or clearly-labeled simulation · AI³ Growth Hackathon 2026</footer>
+  <footer>All generation runs on <a href="https://pc.0g.ai" target="_blank">0G Private Computer</a> (0GM-1.0-35B-A3B + deepseek-v4-pro + z-image-turbo, verify_tee) · mint on 0G Galileo testnet (anchor tx / ERC-721) or clearly-labeled simulation · AI³ Growth Hackathon 2026</footer>
 </div>
 
 <script>
@@ -85,10 +85,11 @@ async function load(){
       <div class="body">
         <h3>${esc(w.title)}</h3>
         <div class="cap">${esc(w.caption)}</div>
-        <div class="prov"><b>◉ 0G provenance</b><br>
-          text: ${esc(w.provenance.text.model)} · tee_verified=${w.provenance.text.teeVerified}<br>
+        <div class="prov"><b>◉ 0G provenance · multi-model</b><br>
+          title/caption: ${esc(w.provenance.text.model)} · tee_verified=${w.provenance.text.teeVerified}<br>
           proofRef: ${esc(w.provenance.text.proofRef||'—')}<br>
-          image: ${esc(w.provenance.image.model)}<br>
+          ${w.provenance.prompt?`prompt: ${esc(w.provenance.prompt.model)} · tee_verified=${w.provenance.prompt.teeVerified}<br>
+          proofRef: ${esc(w.provenance.prompt.proofRef||'—')}<br>`:''}image: ${esc(w.provenance.image.model)}<br>
           proofRef: ${esc(w.provenance.image.proofRef||'—')}</div>
         ${w.minted?`
           <div class="minted">🪙 MINTED ${w.minted.simulated?'<span class="simtag">[SIMULATED]</span>':''}<br>
